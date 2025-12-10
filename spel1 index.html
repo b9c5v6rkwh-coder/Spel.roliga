@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Money Factory — Clicker</title>
+  <style>
+    :root{
+      --bg:#0e141a; --card:#11161b; --accent:#ffd166; --muted:#9aa6b2; --glass: rgba(255,255,255,0.03);
+      --good:#5eead4;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%; margin:0; background:linear-gradient(180deg,#061018 0%, #0b1620 100%); color:#e6eef6}
+    .wrap{max-width:1100px; margin:20px auto; padding:18px; display:grid; grid-template-columns: 1fr 360px; gap:18px;}
+    header{grid-column:1/-1; display:flex; justify-content:space-between; align-items:center; gap:12px}
+    h1{margin:0; font-size:20px; letter-spacing:0.6px}
+    .panel{background:linear-gradient(180deg,var(--card), #0b1114); border-radius:12px; padding:14px; box-shadow: 0 6px 18px rgba(0,0,0,0.6);}
+    #game {display:flex; flex-direction:column; gap:12px; align-items:center; padding:16px;}
+    #bank {font-size:28px; font-weight:700; color:var(--accent)}
+    .big-btn{width:260px; height:120px; display:flex; align-items:center; justify-content:center; border-radius:14px;
+            background:linear-gradient(180deg,#13242f,#0b1a20); border:2px solid rgba(255,255,255,0.04); cursor:pointer; user-select:none; font-size:22px}
+    .big-btn:active{transform:translateY(2px)}
+    #clickArea{position:relative;}
+    .small{font-size:13px; color:var(--muted)}
+    .shop{display:flex; flex-direction:column; gap:10px; margin-top:6px; width:100%}
+    .item{display:flex; justify-content:space-between; align-items:center; gap:8px; padding:10px; border-radius:10px; background:var(--glass)}
+    .item .left{display:flex; gap:10px; align-items:center}
+    .item .icon{width:46px; height:46px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:700}
+    .cost{font-weight:700; color:var(--accent)}
+    .btn-buy{padding:8px 12px; border-radius:8px; cursor:pointer; background:#0f8bff; color:white; border:none}
+    .btn-disabled{opacity:0.45; background:#274357; cursor:not-allowed}
+    aside{padding:12px; display:flex; flex-direction:column; gap:12px;}
+    .row{display:flex; gap:8px; align-items:center; justify-content:space-between}
+    footer{grid-column:1/-1; text-align:center; color:var(--muted); font-size:13px; margin-top:6px}
+    .muted{color:var(--muted)}
+    #upgrades{display:grid; grid-template-columns:1fr; gap:8px; max-height:420px; overflow:auto; padding-right:6px;}
+    .mini{font-size:12px; color:var(--muted)}
+    .progress{height:8px; background:rgba(255,255,255,0.04); border-radius:999px; overflow:hidden}
+    .progress > i{display:block; height:100%; background:linear-gradient(90deg,var(--accent),#ff9a66)}
+    .controls{display:flex; gap:8px; flex-wrap:wrap}
+    .pill{background:rgba(255,255,255,0.03); padding:6px 10px; border-radius:999px; font-size:13px}
+    @media (max-width:980px){
+      .wrap{grid-template-columns:1fr; padding:12px}
+      .big-btn{width:100%}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Money Factory — Clicker</h1>
+        <div class="small muted">Klicka för pengar. Köp generators. Prestigera för multipliers.</div>
+      </div>
+      <div class="controls">
+        <div class="pill" id="ppsDisplay">Per sekund: 0</div>
+        <div class="pill" id="bestDisplay">Highscore: 0</div>
+        <div class="pill" id="levelDisplay">Prestige: 0×</div>
+      </div>
+    </header>
+
+    <!-- Main game column -->
+    <section class="panel" id="mainPanel">
+      <div id="game">
+        <div id="bank">0 ₵</div>
+        <div class="small">Klickvärde: <span id="clickValue">1</span> ₵</div>
+
+        <div id="clickArea">
+          <div class="big-btn" id="clickBtn" title="Klicka eller tryck mellanslag">
+            Tryck för pengar
+          </div>
+        </div>
+
+        <div class="row" style="width:100%; justify-content:space-between">
+          <div class="mini">Tid spelad: <span id="timePlayed">0s</span></div>
+          <div class="mini">Avancerad nivå: <span id="difficulty">1</span></div>
+        </div>
+
+        <div style="width:100%; margin-top:6px">
+          <div class="small">Upgrades</div>
+          <div id="upgrades"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right column: shop / stats -->
+    <aside class="panel">
+      <div>
+        <div class="small">Automatiska generators</div>
+        <div id="shop" class="shop"></div>
+      </div>
+
+      <div style="margin-top:8px">
+        <div class="small">Prestige</div>
+        <div style="display:flex; gap:8px; margin-top:8px">
+          <button id="prestigeBtn" class="btn-buy">Prestigera (reset)</button>
+          <button id="exportBtn" class="btn-buy" style="background:#00b894">Export</button>
+          <button id="importBtn" class="btn-buy" style="background:#6c5ce7">Import</button>
+        </div>
+        <div class="small muted" style="margin-top:6px">Prestige ger en permanent multiplier till inköp och klick.</div>
+      </div>
+
+      <div style="margin-top:8px">
+        <div class="small">Inställningar</div>
+        <div style="margin-top:8px; display:flex; gap:8px; flex-direction:column">
+          <label><input type="checkbox" id="autosave" checked> Autospara (var 5 sek)</label>
+          <label><input type="checkbox" id="soundToggle" checked> Ljud (ingen extern fil)</label>
+          <label><input type="checkbox" id="offlineToggle" checked> Offline-intäkter</label>
+        </div>
+      </div>
+
+      <div style="margin-top:8px">
+        <div class="small">Info & monetisering</div>
+        <div class="muted mini" style="margin-top:6px">
+          Detta är ett demo-spel. Du kan senare lägga till annonser eller köp i app-butiker — 
+          lägg en annons- eller in-app-hook där vi markerat i koden.
+        </div>
+      </div>
+    </aside>
+
+    <footer class="muted small">Tip: Tryck mellanslag för att klicka. Spelet sparar automatiskt.</footer>
+  </div>
+
+  <script>
+  // -----------------------------
+  // Money Factory — Clicker (JS)
+  // Enkel men komplett idle engine med save / offline / prestige
+  // -----------------------------
+  // Helpers
+  const fmt = n => {
+    if (n < 1000) return Math.floor(n).toString();
+    const suffixes = ['','k','M','B','T','P','E'];
+    let i=0; let v=n;
+    while (v>=1000 && i<suffixes.length-1){ v/=1000; i++; }
+    // 1 decimal if <100
+    return (v < 10 ? Math.round(v*10)/10 : Math.round(v)) + suffixes[i];
+  };
+
+  // Game state
+  const state = {
+    money: 0,
+    clickValue: 1,
+    totalEarned: 0,
+    timePlayed: 0,
+    best: 0,
+    prestige: 0,       // prestige level
+    prestigeMult: 1,
+    generators: [],    // will be objects {id,name,baseCost,level,basePps}
+    upgrades: [],      // placeholder for buyable upgrades
+    lastSave: Date.now(),
+    startedAt: Date.now()
+  };
+
+  // Initial generator templates (id, name, baseCost, basePps)
+  const templates = [
+    ['hand','Arbetare', 15, 0.1],
+    ['press','Maskin', 120, 1],
+    ['plant','Fabrik', 900, 8],
+    ['tower','Koncern', 6000, 50],
+    ['ai','AI-fabrik', 45000, 350]
+  ];
+
+  // Create generators from templates
+  templates.forEach((t, idx) => {
+    state.generators.push({
+      id: t[0], name: t[1], baseCost: t[2], level: 0, basePps: t[3]
+    });
+  });
+
+  // DOM refs
+  const bankEl = document.getElementById('bank');
+  const clickValueEl = document.getElementById('clickValue');
+  const ppsDisplay = document.getElementById('ppsDisplay');
+  const bestDisplay = document.getElementById('bestDisplay');
+  const levelDisplay = document.getElementById('levelDisplay');
+  const clickBtn = document.getElementById('clickBtn');
+  const shopEl = document.getElementById('shop');
+  const upgradesEl = document.getElementById('upgrades');
+  const timePlayedEl = document.getElementById('timePlayed');
+  const difficultyEl = document.getElementById('difficulty');
+
+  // Load/save
+  const SAVE_KEY = 'mf_save_v1';
+  function saveGame(){
+    state.lastSave = Date.now();
+    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+    // update best
+    if (state.money > state.best) state.best = state.money;
+  }
+  function loadGame(){
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return false;
+    try {
+      const obj = JSON.parse(raw);
+      Object.assign(state, obj);
+      // safety: ensure arrays exist
+      if (!state.generators || !state.generators.length) {
+        state.generators = [];
+        templates.forEach(t => state.generators.push({id:t[0],name:t[1],baseCost:t[2],level:0,basePps:t[3]}));
+      }
+      recalcPrestigeMult();
+      return true;
+    } catch(e){ console.error('load failed', e); return false; }
+  }
+
+  // Export / import for sharing
+  document.getElementById('exportBtn').addEventListener('click', ()=>{
+    const text = btoa(JSON.stringify(state));
+    prompt('Kopiera exportkoden (spara någonstans):', text);
+  });
+  document.getElementById('importBtn').addEventListener('click', ()=>{
+    const txt = prompt('Klistra in exportkod här:');
+    if (!txt) return;
+    try {
+      const obj = JSON.parse(atob(txt));
+      if (confirm('Ersätt nuvarande sparfil?')) {
+        Object.assign(state, obj);
+        recalcPrestigeMult();
+        renderAll();
+        saveGame();
+      }
+    } catch(e){ alert('Felaktig kod'); }
+  });
+
+  // Prestige logic
+  function recalcPrestigeMult(){
+    state.prestigeMult = 1 + state.prestige * 0.05; // varje prestige ger +5% permanent
+    levelDisplay.textContent = state.prestige + '×';
+  }
+  document.getElementById('prestigeBtn').addEventListener('click', ()=>{
+    const total = state.totalEarned;
+    // simple prestige requirement: at least 10k total earned per prestige
+    const can = Math.floor(total / 10000);
+    if (can <= state.prestige) {
+      alert('Du måste tjäna mer total inkomst för att få prestige. (10 000 ₵ per nivå)');
+      return;
+    }
+    if (!confirm(`Prestigera? Detta återställer pengar och generators men ger ${can - state.prestige} prestige nivå(-er).`)) return;
+    state.prestige = can;
+    recalcPrestigeMult();
+    // reset money & levels
+    state.money = 0;
+    state.clickValue = 1;
+    state.generators.forEach(g => g.level = 0);
+    // optionally give permanent bonus to click value
+    state.clickValue = 1 * state.prestigeMult;
+    renderAll();
+    saveGame();
+  });
+
+  // Generator cost formula
+  function costFor(gen){
+    // exponential scale: baseCost * 1.15^level, rounded
+    return Math.floor(gen.baseCost * Math.pow(1.15, gen.level) / state.prestigeMult);
+  }
+  function ppsFor(gen){
+    // basePps * level * prestigeMult
+    return gen.basePps * gen.level * state.prestigeMult;
+  }
+
+  // Buy generator
+  function buyGenerator(id){
+    const gen = state.generators.find(g=>g.id===id);
+    const c = costFor(gen);
+    if (state.money < c) { flashButton('buyFail'); return false; }
+    state.money -= c;
+    gen.level += 1;
+    state.clickValue = Math.max(1, 1 * state.prestigeMult + Math.floor(state.generators.reduce((s,g)=>s + g.level*0,0))); // keep base
+    renderAll();
+    return true;
+  }
+
+  // UI rendering
+  function renderShop(){
+    shopEl.innerHTML = '';
+    state.generators.forEach(gen => {
+      const item = document.createElement('div'); item.className='item';
+      const left = document.createElement('div'); left.className='left';
+      const icon = document.createElement('div'); icon.className='icon'; icon.style.background='linear-gradient(135deg,#082b2b,#0d6b6b)'; icon.textContent = gen.name[0];
+      const info = document.createElement('div'); info.innerHTML = `<div style="font-weight:700">${gen.name}</div><div class="mini">Level ${gen.level} — +${(gen.basePps*gen.level*state.prestigeMult).toFixed(1)}/s</div>`;
+      left.appendChild(icon); left.appendChild(info);
+      const right = document.createElement('div'); right.style.textAlign='right';
+      const cost = document.createElement('div'); cost.className='cost'; cost.textContent = fmt(costFor(gen)) + ' ₵';
+      const buy = document.createElement('button'); buy.className='btn-buy'; buy.textContent = 'Köp';
+      if (state.money < costFor(gen)) buy.classList.add('btn-disabled');
+      buy.onclick = ()=>{ buyGenerator(gen.id); };
+      right.appendChild(cost); right.appendChild(buy);
+      item.appendChild(left); item.appendChild(right);
+      shopEl.appendChild(item);
+    });
+  }
+
+  // Upgrades (simple placeholders)
+  state.upgrades = [
+    {id:'doubleClick', name:'Dubbla klick', desc:'Dubblar värdet per klick', cost:500, bought:false},
+    {id:'boost1', name:'Turbo 10s', desc:'+500% PPS i 10s (engångs)', cost:1200, bought:false}
+  ];
+  function renderUpgrades(){
+    upgradesEl.innerHTML = '';
+    state.upgrades.forEach(up => {
+      const it = document.createElement('div'); it.className='item';
+      it.innerHTML = `<div class="left"><div class="icon" style="background:linear-gradient(135deg,#4b2b83,#7b61ff)">U</div>
+        <div><div style="font-weight:700">${up.name}</div><div class="mini">${up.desc}</div></div></div>
+        <div style="text-align:right"><div class="cost">${fmt(up.cost)} ₵</div>
+        <button class="btn-buy" data-id="${up.id}">${up.bought? 'Köpt':'Köp'}</button></div>`;
+      const btn = it.querySelector('button');
+      if (up.bought) btn.classList.add('btn-disabled');
+      btn.addEventListener('click', ()=>{
+        if (up.bought) return;
+        if (state.money < up.cost) { flashButton('buyFail'); return; }
+        state.money -= up.cost; up.bought = true;
+        // apply upgrade effect
+        if (up.id === 'doubleClick') {
+          state.clickValue *= 2;
+        } else if (up.id === 'boost1') {
+          triggerTempBoost(10, 5); // +500% = x5
+        }
+        renderAll();
+      });
+      upgradesEl.appendChild(it);
+    });
+  }
+
+  // PPS calculation
+  function totalPps(){
+    return state.generators.reduce((s,g)=>s + ppsFor(g), 0);
+  }
+
+  // Tick / game loop
+  let lastTick = Date.now();
+  function tick(){
+    const now = Date.now();
+    const dt = (now - lastTick)/1000; // seconds since last tick
+    lastTick = now;
+    // add passive income
+    const pps = totalPps();
+    const gain = pps * dt;
+    if (gain > 0) {
+      state.money += gain;
+      state.totalEarned += gain;
+    }
+    // update time
+    state.timePlayed = Math.floor((now - state.startedAt)/1000);
+    renderAll();
+  }
+
+  // Offline progress calculation on load
+  function applyOfflineGain(){
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return;
+    try {
+      const obj = JSON.parse(raw);
+      if (!obj.lastSave) return;
+      const sec = Math.floor((Date.now() - obj.lastSave)/1000);
+      if (sec <= 0) return;
+      if (!document.getElementById('offlineToggle').checked) return;
+      // grant offline income equal to pps * seconds * 0.7 (70% efficiency)
+      const oldPps = (obj.generators || []).reduce((s,g)=>s + (g.basePps * g.level * (1 + (obj.prestige||0)*0.05)), 0);
+      const bonus = oldPps * sec * 0.7;
+      if (bonus > 0) {
+        state.money += bonus;
+        state.totalEarned += bonus;
+        alert('Offline intäkter: ' + Math.round(bonus) + ' ₵ (spelade offline ' + sec + 's)');
+      }
+    } catch(e){}
+  }
+
+  // Render everything
+  function renderAll(){
+    bankEl.textContent = fmt(Math.floor(state.money)) + ' ₵';
+    clickValueEl.textContent = Math.round(state.clickValue*100)/100;
+    ppsDisplay.textContent = 'Per sekund: ' + fmt(totalPps());
+    bestDisplay.textContent = 'Highscore: ' + fmt(Math.floor(state.best));
+    timePlayedEl.textContent = state.timePlayed + 's';
+    difficultyEl.textContent = Math.max(1, Math.floor(1 + state.totalEarned / 10000));
+    renderShop();
+    renderUpgrades();
+  }
+
+  // Click interaction
+  function clickMoney(){
+    // simple click
+    const gain = state.clickValue;
+    state.money += gain;
+    state.totalEarned += gain;
+    // small visual
+    animateClick();
+    renderAll();
+  }
+
+  clickBtn.addEventListener('click', clickMoney);
+  // keyboard space
+  window.addEventListener('keydown', (e)=>{ if (e.code === 'Space') { e.preventDefault(); clickMoney(); } });
+
+  // Click animation
+  function animateClick(){
+    const el = clickBtn;
+    el.animate([{transform:'scale(1)'},{transform:'scale(0.96)'},{transform:'scale(1)'}], {duration:150, easing:'ease-out'});
+  }
+
+  // Temporary boost
+  let boostMult = 1;
+  function triggerTempBoost(seconds, multiplier){
+    boostMult = multiplier;
+    setTimeout(()=>{ boostMult = 1; }, seconds*1000);
+    // apply: multiply each generator pps by multiplier while active (handled in ppsFor using multiplier)
+    // to keep simple we temporarily multiply basePps
+    state.generators.forEach(g => g.basePps *= multiplier);
+    setTimeout(()=>{ state.generators.forEach((g,idx)=> g.basePps = templates[idx][3] * (g.level?1:1)); renderAll(); }, seconds*1000+50);
+  }
+
+  // flash for failed buy
+  function flashButton(id){
+    // simple visual by changing background briefly
+    clickBtn.animate([{background:'#0b1a20'},{background:'#5f0f0f'},{background:'#0b1a20'}], {duration:300});
+  }
+
+  // Autosave
+  setInterval(()=>{ if (document.getElementById('autosave').checked) saveGame(); }, 5000);
+
+  // Save on unload
+  window.addEventListener('beforeunload', ()=> saveGame());
+
+  // Init
+  (function init(){
+    // try load
+    loadGame();
+    // apply offline from previous session
+    applyOfflineGain();
+    recalcPrestigeMult();
+    // start tick
+    lastTick = Date.now();
+    setInterval(tick, 200); // 5 ticks per sec
+    renderAll();
+  })();
+
+  // -- NOTE where to hook monetization:
+  // 1) For interstitial ads: call a function showAd() when the player opens game or on level up.
+  // 2) For rewarded ads: grant coins when showRewardedAd() resolves.
+  // 3) For in-app purchases: add server verification flow for real money purchases.
+  // These hooks are intentionally left empty here (minor + demo). When you're old enough / have an account,
+  // you can integrate Google AdMob or platform IAPs in a packaged mobile app (requires adult developer account).
+
+  </script>
+</body>
+</html>
