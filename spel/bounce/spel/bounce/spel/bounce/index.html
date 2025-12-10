@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+<body>
+<h2>Bounce</h2>
+<canvas id="c" width="330" height="200" style="border:1px solid #000"></canvas>
+
+<script>
+const ctx = c.getContext("2d");
+let x=50,y=50,vx=3,vy=2;
+function loop(){
+  x+=vx; y+=vy;
+  if(x<10||x>320) vx=-vx;
+  if(y<10||y>190) vy=-vy;
+  ctx.clearRect(0,0,330,200);
+  ctx.beginPath();
+  ctx.arc(x,y,10,0,7);
+  ctx.fill();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
