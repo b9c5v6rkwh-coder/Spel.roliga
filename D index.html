@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <title>Candy Clicker</title>
+    <style>
+        body {
+            background: #ffb3da;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding-top: 50px;
+            color: #333;
+        }
+
+        #candyBtn {
+            background: pink;
+            border: none;
+            padding: 30px 50px;
+            border-radius: 20px;
+            font-size: 30px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 0 10px #ff69b4;
+            transition: 0.1s;
+        }
+
+        #candyBtn:active {
+            transform: scale(0.95);
+            box-shadow: 0 0 5px #d1478c;
+        }
+
+        #count {
+            font-size: 40px;
+            margin-top: 20px;
+        }
+
+        .shop {
+            margin-top: 40px;
+            background: #fff;
+            padding: 20px;
+            width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+            border-radius: 15px;
+            box-shadow: 0 0 10px #ff69b4;
+        }
+
+        .buyBtn {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            border: none;
+            background: #ff69b4;
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .buyBtn:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🍬 Candy Clicker 🍬</h1>
+
+    <button id="candyBtn">Klicka 🍬</button>
+
+    <div id="count">Godisar: 0</div>
+
+    <div class="shop">
+        <h2>Shop</h2>
+        <button class="buyBtn" onclick="buyUpgrade()">Köp Auto-Candy (+1 varje sekund) – 50 godisar</button>
+    </div>
+
+    <script>
+        let candies = 0;
+        let autoCandies = 0;
+
+        const candyBtn = document.getElementById("candyBtn");
+        const countDisplay = document.getElementById("count");
+
+        candyBtn.onclick = function() {
+            candies++;
+            updateDisplay();
+        };
+
+        function updateDisplay() {
+            countDisplay.innerText = "Godisar: " + candies;
+        }
+
+        function buyUpgrade() {
+            if (candies >= 50) {
+                candies -= 50;
+                autoCandies++;
+                alert("Du köpte Auto-Candy! Du får nu " + autoCandies + " per sekund.");
+            } else {
+                alert("Du har inte tillräckligt med godisar!");
+            }
+            updateDisplay();
+        }
+
+        // Lägg till auto-inkomst
+        setInterval(function() {
+            candies += autoCandies;
+            updateDisplay();
+        }, 1000);
+    </script>
+
+</body>
+</html>
